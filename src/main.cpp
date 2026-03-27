@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
-#include "alignment/alignment.hpp"
-#include "minimizers/minimizers.hpp"
-#include "mapper/mapper.hpp"
+//#include "alignment/alignment.hpp"
+//#include "minimizers/minimizers.hpp"
+//#include "mapper/mapper.hpp"
 
 auto reference = blonde::LoadFasta("reference.fasta");
 auto fragments = blonde::LoadFasta("fragments.fasta");
