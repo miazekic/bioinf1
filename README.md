@@ -12,24 +12,24 @@ At the end of the project, students will have implemented several libraries that
 
 ## Setup
 
-Each team's main branch should be up to date with this README. The project setup consists of creating a C++ program and naming it in form of `<team name>_mapper` (e.g. `blonde_mapper`) with `cmake`. It has to accept two files as floating arguments and enable options `-h` (`--help`) and `--version`, which are used for the help and version messages (following [SemVer](https://semver.org/)), respectively. Suggested argument parser to include is `optarg`, but this feature can also be implemented independently.
+Each team's main branch should be up to date with this README. The project setup consists of creating a C++ program and naming it in form of `<team name>_mapper` (e.g. `mapper_mapper`) with `cmake`. It has to accept two files as floating arguments and enable options `-h` (`--help`) and `--version`, which are used for the help and version messages (following [SemVer](https://semver.org/)), respectively. Suggested argument parser to include is `optarg`, but this feature can also be implemented independently.
 
 The first file will contain a reference genome in [FASTA](https://en.wikipedia.org/wiki/FASTA_format) format, while the second file will contain a set of fragments in either FASTA or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) format. The files need to be parsed and stored in memory, and some statistics have to be outputted to `stderr`, which includes names of sequences in the reference file and their lengths, number of sequences in the fragments file, their average length, N50 length, minimal and maximal length, etc. There is no need to implement a parser, you can add [bioparser](https://github.com/rvaser/bioparser) to the project as a submodule via `git` and integrate it with `cmake`. It supports several bioinformatics formats where files can also be compressed with `gzip`.
 
 Sample program runs, after the setup step is completed, can be seen bellow:
 
 ```bash
-blonde_mapper GCF_000005845.2_ASM584v2_genomic.fna MAP006-1_2D_pass.fasta
+mapper_mapper GCF_000005845.2_ASM584v2_genomic.fna MAP006-1_2D_pass.fasta
 <basic statistics of input files>
 ```
 
 ```bash
-blonde_mapper -h
+mapper_mapper -h
 <appropriate message describing supported arguments>
 ```
 
 ```bash
-blonde_mapper --version
+mapper_mapper --version
 v0.1.0
 ```
 
@@ -44,7 +44,7 @@ Sequence alignment is a series of transformations which describes how to obtain 
 
 There are different versions of pairwise alignment algorithms, the Needleman-Wunsch algorithm for global alignment, the Smith-Waterman algorithm for local alignment and semi-global algorithms used for suffix-prefix and prefix-suffix alignments. The main differences between them are in the initialization step and the place from which the backtrack procedure can start.
 
-Students have to create a library which implements all three alignment algorithms. The library should be named in form of `<team name>_alignment` (e.g. `blonde_alignment`) and should have its own namespace called after the team (e.g. `blonde`). The library has to be created with the same `CMakeLists.txt` file as the mapper, and eventually be linked to it. The implementation has no requirements (it can be just one function or through a class) but the alignment function should have the following prototype:
+Students have to create a library which implements all three alignment algorithms. The library should be named in form of `<team name>_alignment` (e.g. `mapper_alignment`) and should have its own namespace called after the team (e.g. `mapper`). The library has to be created with the same `CMakeLists.txt` file as the mapper, and eventually be linked to it. The implementation has no requirements (it can be just one function or through a class) but the alignment function should have the following prototype:
 
 ```cpp
 int Align(
@@ -72,7 +72,7 @@ The alignment library, and all other code components to follow, should have a se
 
 The next step is to implement a library that for any DNA/RNA sequence returns its set of minimizers, which are specific substrings of defined length *k* (often called *k*-mers). As alignment algorithms have quadratic time complexity, *k*-mer indexing is often used for fast detection of similar regions between two sequences (or one vs many) prior the alignment. However, collecting all *k*-mers can have a big impact on computational resources (both memory and execution time), especially choosing those that are quite frequent in the target sequence set. Considering only a subset of *k*-mers can alleviate the whole process while keeping reasonable levels of sensitivity. One such method is to use lexicographically smallest *k*-mers called minimizers which are described [here](https://academic.oup.com/bioinformatics/article/20/18/3363/202143).
 
-The library should be named in a form of `<team name>_minimizers` (e.g. `blonde_minimizers`) and should share its namespace with the alignment library (e.g. `blonde`). Other constraints apply as well, it has to be created with the same `CMakeLists.txt`, it has to be linked to the mapper, and have its own unit tests which are run via TravisCI. The implementation has no requirements (it can be just one function or through a class) but the function for obtaining minimizers should have the following prototype:
+The library should be named in a form of `<team name>_minimizers` (e.g. `mapper_minimizers`) and should share its namespace with the alignment library (e.g. `mapper`). Other constraints apply as well, it has to be created with the same `CMakeLists.txt`, it has to be linked to the mapper, and have its own unit tests which are run via TravisCI. The implementation has no requirements (it can be just one function or through a class) but the function for obtaining minimizers should have the following prototype:
 
 ```cpp
 std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
