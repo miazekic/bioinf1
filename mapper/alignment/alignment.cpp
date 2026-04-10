@@ -9,27 +9,27 @@ typedef struct {
     int cost; /* cost of reaching this cell */
     char parent; /* parent cell */
 } cell;
-git
+
 int Align(const char* query, unsigned int query_len,
     const char* target, unsigned int target_len,
     AlignmentType type,
     int match,
     int mismatch,
     int gap,
-    std::string* cigar = nullptr,
-    unsigned int* target_begin = nullptr){
+    std::string* cigar,
+    unsigned int* target_begin){
 
     std::vector<std::vector<cell>> matrix (query_len + 1, std::vector<cell> (target_len + 1));
     
-    matrix[0][0].score = 0;
+    matrix[0][0].cost = 0;
     matrix[0][0].parent = 'S';
 
-    for(unsigned int i = 1, i < query_len; i++){
+    for(unsigned int i = 1; i <= query_len; i++){
         matrix[i][0].cost = i*gap;
         matrix[i][0].parent = 'U';
     }
 
-    for(unsigned int j = 1, j < target_len; i++){
+    for(unsigned int j = 1; j <= target_len; j++){
         matrix[0][j].cost = j * gap;
         matrix[0][j].parent = 'L';
     }
@@ -38,13 +38,13 @@ int Align(const char* query, unsigned int query_len,
     for(unsigned int i = 1; i < query_len + 1; i++){
         for(unsigned int j = 1; j < target_len + 1; j++){
             int diag = matrix[i-1][j-1].cost + (query[i-1] == target[j-1] ? match : mismatch);
-            int up = matrix[i-1][0].cost + gap;
-            int left = matrix[0][j-1].cost + gap;
+            int up = matrix[i-1][j].cost + gap;
+            int left = matrix[i][j-1].cost + gap;
 
             matrix[i][j].cost = std::max({diag, up, left});
 
-            if (best == diag) matrix[i][j].parent = 'D';
-            else if (best == up) matrix[i][j].parent = 'U';
+            if (matrix[i][j].cost == diag) matrix[i][j].parent = 'D';
+            else if (matrix[i][j].cost == up) matrix[i][j].parent = 'U';
             else matrix[i][j].parent = 'L'; 
         }
     }
@@ -52,7 +52,7 @@ int Align(const char* query, unsigned int query_len,
     if(cigar){
         int i = query_len;
         int j = target_len;
-        std::string traceback ='';
+        std::string traceback ="";
 
         while(i != 0 || j != 0){
             char dir = matrix[i][j].parent;
@@ -72,7 +72,7 @@ int Align(const char* query, unsigned int query_len,
 
         std::reverse(traceback.begin(), traceback.end());
 
-        std::string final_cigar = '';
+        std::string final_cigar = "";
         if(!traceback.empty()){
             int count = 1;
             for (size_t k = 1; k <= traceback.length(); k++){
