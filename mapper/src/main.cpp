@@ -2,6 +2,7 @@
 #include <string>
 #include "../alignment/alignment.hpp"
 #include "../minimizers/minimizers.hpp"
+#include "../src/mapper.hpp"
 #include "mapper.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
@@ -26,6 +27,42 @@ struct Fragment {
             : name(name, name_len),
             data(data, data_len) {} 
 };
+
+
+
+
+void test_LIS() {
+    std::cout << "\n=== TESTIRANJE LIS ALGORITMA ===" << std::endl;
+
+    
+    std::vector<mapper::Hit> hits1 = {
+        {10, 500}, {20, 510}, {30, 1200}, {40, 520}, {50, 300}
+    };
+    auto chain1 = mapper::find_LIS_chain(hits1);
+    std::cout << "Test 1 (Buka): ";
+    for(auto h : chain1) std::cout << h.target_pos << " ";
+    std::cout << (chain1.size() == 3 ? " -> PROŠAO" : " -> PAD") << std::endl;
+
+    
+    std::vector<mapper::Hit> hits2 = {
+        {1, 100}, {2, 200}, {3, 300}, {4, 400}
+    };
+    auto chain2 = mapper::find_LIS_chain(hits2);
+    std::cout << "Test 2 (Idealno): ";
+    for(auto h : chain2) std::cout << h.target_pos << " ";
+    std::cout << (chain2.size() == 4 ? " -> PROŠAO" : " -> PAD") << std::endl;
+
+    
+    std::vector<mapper::Hit> hits3 = {
+        {1, 50}, {2, 40}, {3, 30}, {4, 20}, {5, 10}
+    };
+    auto chain3 = mapper::find_LIS_chain(hits3);
+    std::cout << "Test 3 (Obrnuto): ";
+    for(auto h : chain3) std::cout << h.target_pos << " ";
+    std::cout << (chain3.size() == 1 ? " -> PROŠAO" : " -> PAD") << std::endl;
+
+    std::cout << "===============================\n" << std::endl;
+}
 
 
 int main(int argc, char** argv) {
@@ -92,6 +129,8 @@ std::cout << "---------------------------\n" << std::endl;
             index2[hash].push_back(pos);
         }
     }
+
+    test_LIS();
 
     return 0;
 }

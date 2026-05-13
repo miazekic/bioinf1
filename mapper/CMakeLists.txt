@@ -9,6 +9,7 @@ add_subdirectory(external/bioparser)
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/mapper.cpp
     alignment/alignment.cpp
     minimizers/minimizers.cpp
 )

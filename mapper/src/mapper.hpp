@@ -4,6 +4,15 @@
 
 namespace mapper {
 
+
+    struct Hit {
+        unsigned int query_pos;
+        unsigned int target_pos;
+    };
+
+    
+    std::vector<Hit> find_LIS_chain(std::vector<Hit>& hits);
+
 struct FastaRecord {
     std::string header;
     std::string sequence;
