@@ -170,16 +170,16 @@ for (int i = 0; i < (int)sek.size(); i++) {
     t_end = std::min(t_end, (unsigned int)ref[0]->data.size());
     // 3. ALIGN
     // TODO obrisi
-    if (q_end <= q_begin || t_end <= t_begin) continue;
-    if (q_end - q_begin > 3000 || t_end - t_begin > 3000) continue;
-    std::string cigar;
+    //if (q_end <= q_begin || t_end <= t_begin) continue;
+    //if (q_end - q_begin > 3000 || t_end - t_begin > 3000) continue;
+   /* std::string cigar;
     mapper::Align(
         frag_data.c_str() + q_begin, q_end - q_begin,
         ref[0]->data.c_str() + t_begin, t_end - t_begin,
         mapper::AlignmentType::Global,
         2, -1, -2,
         &cigar
-    );
+    );*/
 
     // 4. PAF
     {
