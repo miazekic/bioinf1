@@ -19,6 +19,36 @@ int Align(const char* query, unsigned int query_len,
     std::string* cigar,
     unsigned int* target_begin){
 
+    if (cigar == nullptr) {
+        std::vector<int> previous(target_len + 1);
+        std::vector<int> current(target_len + 1);
+
+        for (unsigned int j = 0; j <= target_len; ++j) {
+            previous[j] = static_cast<int>(j) * gap;
+        }
+
+        for (unsigned int i = 1; i <= query_len; ++i) {
+            current[0] = static_cast<int>(i) * gap;
+
+            for (unsigned int j = 1; j <= target_len; ++j) {
+                int diag = previous[j - 1] +
+                    (query[i - 1] == target[j - 1] ? match : mismatch);
+                int up = previous[j] + gap;
+                int left = current[j - 1] + gap;
+
+                current[j] = std::max({diag, up, left});
+            }
+
+            std::swap(previous, current);
+        }
+
+        if (target_begin != nullptr) {
+            *target_begin = 0;
+        }
+
+        return previous[target_len];
+    }
+
     std::vector<std::vector<cell>> matrix (query_len + 1, std::vector<cell> (target_len + 1));
     
     matrix[0][0].cost = 0;

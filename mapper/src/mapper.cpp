@@ -17,12 +17,17 @@ std::vector<Hit> find_LIS_chain(std::vector<Hit>& hits) {
 
     // 1. Sortiranje po query poziciji (osigurava linearan poredak u fragmentu)
     std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) {
+    if (a.query_pos != b.query_pos) {
         return a.query_pos < b.query_pos;
+    }
+    return a.target_pos > b.target_pos;
     });
 
     int n = hits.size();
     std::vector<int> parent(n, -1);
     std::vector<int> tails_indices; // Čuva indekse iz 'hits' vektora
+    tails_indices.reserve(n);
+
 
     for (int i = 0; i < n; i++) {
         // Binarna pretraga nad target_pos vrijednostima
