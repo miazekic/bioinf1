@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add bioparser
 add_subdirectory(external/bioparser)
 
+find_package(OpenMP REQUIRED)
+
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/mapper.cpp
@@ -17,6 +19,7 @@ add_executable(${PROJECT_NAME}
 # Link bioparser
 target_link_libraries(${PROJECT_NAME}
     bioparser
+    OpenMP::OpenMP_CXX
 )
 
 # Include directories

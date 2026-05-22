@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
     auto sek= sekv->Parse(-1);
 
         // U main.cpp testnom dijelu:
-std::string test_query = "GAAAAT";
+/*std::string test_query = "GAAAAT";
 std::string test_target = "GAT";
 std::string cigar;
 unsigned int target_begin = 0;
@@ -96,23 +96,7 @@ std::cout << "Score:  " << score << std::endl;
 std::cout << "CIGAR:  " << cigar << std::endl;
 std::cout << "---------------------------\n" << std::endl;
 
-    std::unordered_map<unsigned int, std::vector<unsigned int>> index;
     std::unordered_map<unsigned int, std::vector<unsigned int>> index2;
-    for (const auto& seq : ref) {
-        const std::string& s = seq->data;
-        auto mins = mapper::Minimize(
-            s.c_str(),
-            (unsigned int)s.size(),
-            5,
-            15
-        );
-        for (const auto& m : mins) {
-            unsigned int hash = std::get<0>(m);
-            unsigned int pos  = std::get<1>(m);
-
-            index[hash].push_back(pos);
-        }
-    }
 
     for (const auto& seq : sek) {
         const std::string& s = seq->data;
@@ -129,8 +113,88 @@ std::cout << "---------------------------\n" << std::endl;
             index2[hash].push_back(pos);
         }
     }
+*/
+    std::unordered_map<unsigned int, std::vector<unsigned int>> index;
 
-    test_LIS();
+    for (const auto& seq : ref) {
+    auto ref_mins = mapper::Minimize(
+        seq->data.c_str(),
+        (unsigned int)seq->data.size(),
+        5, 15
+    );
+    for (const auto& m : ref_mins) {
+        unsigned int hash = std::get<0>(m);
+        unsigned int pos  = std::get<1>(m);
+        index[hash].push_back(pos);
+    }
+}
+for (int i = 0; i < (int)sek.size(); i++) {
+    const std::string& frag_data = sek[i]->data;
+
+    // 1. MINIMIZE
+    auto frag_mins = mapper::Minimize(
+        frag_data.c_str(),
+        (unsigned int)frag_data.size(),
+        5, 15
+    );
+
+    // prikupi hitove iz indexa reference
+    std::vector<mapper::Hit> hits;
+    for (const auto& m : frag_mins) {
+        unsigned int hash     = std::get<0>(m);
+        unsigned int frag_pos = std::get<1>(m);
+
+        if (index.count(hash)) {
+            for (unsigned int ref_pos : index[hash]) {
+                hits.push_back({frag_pos, ref_pos});
+            }
+        }
+    }
+
+    if (hits.empty()) continue;
+
+    // 2. LIS
+    auto chain = mapper::find_LIS_chain(hits);
+    if (chain.empty()) continue;
+
+    unsigned int q_begin = chain.front().query_pos;
+    unsigned int q_end   = chain.back().query_pos + 5;
+    unsigned int t_begin = chain.front().target_pos;
+    unsigned int t_end   = chain.back().target_pos + 5;
+    // osiguraj da regija nije prevelika
+    if (q_end - q_begin > 10000) q_end = q_begin + 10000;
+    if (t_end - t_begin > 10000) t_end = t_begin + 10000;
+
+    // osiguraj granice
+    q_end = std::min(q_end, (unsigned int)frag_data.size());
+    t_end = std::min(t_end, (unsigned int)ref[0]->data.size());
+    // 3. ALIGN
+    // TODO obrisi
+    if (q_end <= q_begin || t_end <= t_begin) continue;
+    if (q_end - q_begin > 3000 || t_end - t_begin > 3000) continue;
+    std::string cigar;
+    mapper::Align(
+        frag_data.c_str() + q_begin, q_end - q_begin,
+        ref[0]->data.c_str() + t_begin, t_end - t_begin,
+        mapper::AlignmentType::Global,
+        2, -1, -2,
+        &cigar
+    );
+
+    // 4. PAF
+    {
+    std::cout << sek[i]->name      << "\t"
+              << frag_data.size()    << "\t"
+              << q_begin             << "\t"
+              << q_end               << "\t"
+              << "+"                 << "\t"
+              << ref[0]->name        << "\t"
+              << ref[0]->data.size() << "\t"
+              << t_begin             << "\t"
+              << t_end               << "\t"
+              << 255                 << "\n";
+    }
+}
 
     return 0;
 }

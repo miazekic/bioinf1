@@ -21,13 +21,6 @@ namespace mapper{
         return 0;
     }
 
-static std::string get_complement(std::string sequence, unsigned int len){
-    std::string ret(len, ' ');
-    for(unsigned int i=0; i<len; i++){
-        ret[len-i-1]=komplement(sequence[i]);
-    }
-    return ret;
-}
 
 static std::string get_number(std::string sequence, unsigned int len){
     std::string ret(len, ' ');
@@ -37,23 +30,21 @@ static std::string get_number(std::string sequence, unsigned int len){
     return ret;
 }
 
-std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
+std::vector<std::tuple<unsigned int, unsigned int>> Minimize(
     const char* sequence, unsigned int sequence_len,
     unsigned int kmer_len,
     unsigned int window_len)
 {
     
-    std::string complement=get_number(get_complement(sequence, sequence_len), sequence_len);
     unsigned n=sequence_len-window_len+1;
     std::string s(sequence);
     std::string sequence2=get_number(s, sequence_len);
     int added=-1;
-    std::vector<std::tuple<unsigned int, unsigned int, bool>> result;
+    std::vector<std::tuple<unsigned int, unsigned int>> result;
 
     for(unsigned int i=0; i<n; i++){
         
         std::string normal=sequence2.substr(i, window_len);
-        //std::string komplementirani(complement.c_str()+sequence_len-window_len-i, window_len);
         bool prva=true;
         std::string min;
         unsigned int j=0;
@@ -74,7 +65,7 @@ std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
         prva=true;
         if(int(pos)!=added){
             unsigned int h = (unsigned int)std::hash<std::string>{}(min);
-            result.emplace_back(h, pos, true);
+            result.emplace_back(h, pos);
             added=int(pos);
         }
     }
