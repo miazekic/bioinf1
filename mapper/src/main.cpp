@@ -184,7 +184,7 @@ if (f > 0.0 && remove_count == 0 && !sorted_frequencies.empty()) {
 for (unsigned int i = 0; i < remove_count && i < sorted_frequencies.size(); ++i) {
     index.erase(sorted_frequencies[i].first);
 }
-
+/*
 std::cerr << "Reference distinct minimizers: "
           << sorted_frequencies.size() << "\n";
 
@@ -193,16 +193,16 @@ std::cerr << "Ignored frequent minimizers: "
 
 std::cerr << "Indexed distinct minimizers: "
           << index.size() << "\n";
-
+*/
 
 auto t_index_end = std::chrono::steady_clock::now();
-
+/*
 std::cerr << "Index build time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_index_end - t_index_begin
              ).count()
           << " ms\n";
-
+*/
 for (int i = 0; i < (int)sek.size(); i++) {
     const std::string& frag_data = sek[i]->data;
 
@@ -279,7 +279,7 @@ for (const auto& m : frag_mins) {
 }
 
     auto t_hits_end = std::chrono::steady_clock::now();
-
+/*
     std::cerr << "Collect hits time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_hits_end - t_hits_begin
@@ -292,7 +292,7 @@ for (const auto& m : frag_mins) {
           << " minimizers=" << frag_mins.size()
           << " best_diagonal_bin_hits=" << best_bin_count
           << " hits=" << hits.size()
-          << "\n";
+          << "\n";*/
 
 
     if (hits.empty()) continue;
@@ -303,12 +303,12 @@ for (const auto& m : frag_mins) {
     auto chain = mapper::find_LIS_chain(hits);
 
     auto t_lis_end = std::chrono::steady_clock::now();
-
+/*
     std::cerr << "LIS time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_lis_end - t_lis_begin
              ).count()
-          << " ms\n";
+          << " ms\n";*/
 
     if (chain.empty()) continue;
 
@@ -334,7 +334,7 @@ for (const auto& m : frag_mins) {
         continue;
     }
 
-    if (q_end - q_begin > 3000 || t_end - t_begin > 3000) {
+    if (q_end - q_begin > 12000 || t_end - t_begin > 12000) {
         std::cerr << "Skipping alignment: region too large "
                 << "query=" << (q_end - q_begin)
                 << " target=" << (t_end - t_begin)

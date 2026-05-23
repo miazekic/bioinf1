@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <algorithm> 
+#include <climits>
 
 namespace mapper {
 
@@ -19,9 +20,11 @@ int Align(const char* query, unsigned int query_len,
     std::string* cigar,
     unsigned int* target_begin){
 
+    int band = 100;
+
     if (cigar == nullptr) {
         std::vector<int> previous(target_len + 1);
-        std::vector<int> current(target_len + 1);
+        std::vector<int> current(target_len + 1, 0);
 
         for (unsigned int j = 0; j <= target_len; ++j) {
             previous[j] = static_cast<int>(j) * gap;
@@ -30,7 +33,12 @@ int Align(const char* query, unsigned int query_len,
         for (unsigned int i = 1; i <= query_len; ++i) {
             current[0] = static_cast<int>(i) * gap;
 
-            for (unsigned int j = 1; j <= target_len; ++j) {
+            int j_start = std::max(1, (int)i - band);
+            int j_end   = std::min((int)target_len, (int)i + band);
+
+            if (j_start > 1) current[j_start - 1] = INT_MIN / 2;
+
+            for (int j = j_start; j <= j_end; ++j) {
                 int diag = previous[j - 1] +
                     (query[i - 1] == target[j - 1] ? match : mismatch);
                 int up = previous[j] + gap;
@@ -49,7 +57,7 @@ int Align(const char* query, unsigned int query_len,
         return previous[target_len];
     }
 
-    std::vector<std::vector<cell>> matrix (query_len + 1, std::vector<cell> (target_len + 1));
+    std::vector<std::vector<cell>> matrix (query_len + 1, std::vector<cell> (target_len + 1, {INT_MIN / 2, 'S'}));
     
     matrix[0][0].cost = 0;
     matrix[0][0].parent = 'S';
@@ -66,7 +74,10 @@ int Align(const char* query, unsigned int query_len,
 
 
     for(unsigned int i = 1; i < query_len + 1; i++){
-        for(unsigned int j = 1; j < target_len + 1; j++){
+        int j_start = std::max(1, (int)i - band);
+        int j_end   = std::min((int)target_len, (int)i + band);
+
+        for(int j = j_start; j <= j_end; j++){
             int diag = matrix[i-1][j-1].cost + (query[i-1] == target[j-1] ? match : mismatch);
             int up = matrix[i-1][j].cost + gap;
             int left = matrix[i][j-1].cost + gap;
@@ -96,7 +107,7 @@ int Align(const char* query, unsigned int query_len,
             } else if (dir == 'L'){
                 traceback += 'D';
                 j--;
-            }
+            } else break;
 
         }
 
