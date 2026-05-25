@@ -43,6 +43,21 @@ long long DiagonalBin(long long diagonal, long long bin_size) {
     return -((-diagonal + bin_size - 1) / bin_size);
 }
 
+static char komplement(char a){
+        if(a=='A') return 'T';
+        if(a=='T') return 'A';
+        if(a=='C') return 'G';
+        if(a=='G') return 'C';
+        return 'N';
+    }
+
+static std::string reverse_complement(const std::string& seq) {
+    std::string rc(seq.size(), ' ');
+    for (unsigned int i = 0; i < seq.size(); i++) {
+        rc[seq.size() - 1 - i] = komplement(seq[i]);
+    }
+    return rc;
+}
 
 void test_LIS() {
     std::cout << "\n=== TESTIRANJE LIS ALGORITMA ===" << std::endl;
@@ -82,7 +97,7 @@ int main(int argc, char** argv) {
     auto t_total_begin = std::chrono::steady_clock::now();
 
     if (argc < 3) {
-    std::cerr << "Usage: ./mapper <reference.fasta> <fragments.fasta>\n";
+    //std::cerr << "Usage: ./mapper <reference.fasta> <fragments.fasta>\n";
     return 1;
 }
 
@@ -184,7 +199,7 @@ if (f > 0.0 && remove_count == 0 && !sorted_frequencies.empty()) {
 for (unsigned int i = 0; i < remove_count && i < sorted_frequencies.size(); ++i) {
     index.erase(sorted_frequencies[i].first);
 }
-/*
+
 std::cerr << "Reference distinct minimizers: "
           << sorted_frequencies.size() << "\n";
 
@@ -193,19 +208,19 @@ std::cerr << "Ignored frequent minimizers: "
 
 std::cerr << "Indexed distinct minimizers: "
           << index.size() << "\n";
-*/
+
 
 auto t_index_end = std::chrono::steady_clock::now();
-/*
+
 std::cerr << "Index build time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_index_end - t_index_begin
              ).count()
           << " ms\n";
-*/
-for (int i = 0; i < (int)sek.size(); i++) {
-    const std::string& frag_data = sek[i]->data;
 
+for (int i = 0; i < (int)sek.size(); i++) {
+    const std::string& frag_data1 = sek[i]->data;
+    std::string frag_data = reverse_complement(frag_data1);
     // 1. MINIMIZE
     auto frag_mins = mapper::Minimize(
         frag_data.c_str(),
@@ -279,7 +294,7 @@ for (const auto& m : frag_mins) {
 }
 
     auto t_hits_end = std::chrono::steady_clock::now();
-/*
+
     std::cerr << "Collect hits time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_hits_end - t_hits_begin
@@ -292,7 +307,7 @@ for (const auto& m : frag_mins) {
           << " minimizers=" << frag_mins.size()
           << " best_diagonal_bin_hits=" << best_bin_count
           << " hits=" << hits.size()
-          << "\n";*/
+          << "\n";
 
 
     if (hits.empty()) continue;
@@ -303,12 +318,12 @@ for (const auto& m : frag_mins) {
     auto chain = mapper::find_LIS_chain(hits);
 
     auto t_lis_end = std::chrono::steady_clock::now();
-/*
+
     std::cerr << "LIS time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_lis_end - t_lis_begin
              ).count()
-          << " ms\n";*/
+          << " ms\n";
 
     if (chain.empty()) continue;
 
@@ -317,8 +332,7 @@ for (const auto& m : frag_mins) {
     unsigned int t_begin = chain.front().target_pos;
     unsigned int t_end   = chain.back().target_pos + 5;
     // osiguraj da regija nije prevelika
-    //if (q_end - q_begin > 10000) q_end = q_begin + 10000;
-    //if (t_end - t_begin > 10000) t_end = t_begin + 10000;
+   
 
     // osiguraj granice
     q_end = std::min(q_end, (unsigned int)frag_data.size());
@@ -327,6 +341,8 @@ for (const auto& m : frag_mins) {
     // TODO obrisi
     //if (q_end <= q_begin || t_end <= t_begin) continue;
     //if (q_end - q_begin > 3000 || t_end - t_begin > 3000) continue;
+    //if (q_end - q_begin > 10000) q_end = q_begin + 10000;
+    //if (t_end - t_begin > 10000) t_end = t_begin + 10000;
     std::string cigar;
     bool has_alignment = false;
 
@@ -373,7 +389,6 @@ for (const auto& m : frag_mins) {
               << t_end               << "\t"
               << 255                 << "\n";
     }*/
-
     {
         unsigned int block_len = std::min(q_end - q_begin, t_end - t_begin);
 
@@ -399,11 +414,11 @@ for (const auto& m : frag_mins) {
 
 }
     auto t_total_end = std::chrono::steady_clock::now();
-    std::cerr << "Total time: "
+    /*std::cerr << "Total time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
                  t_total_end - t_total_begin
              ).count()
-          << " ms\n";
-    
+          << " ms\n";*/
+
     return 0;
 }
