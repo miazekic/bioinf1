@@ -35,12 +35,45 @@ struct Fragment {
             data(data, data_len) {} 
 };
 
+struct MappingResult {
+    bool mapped = false;
+    char strand = '+';
+
+    unsigned int q_begin = 0;
+    unsigned int q_end = 0;
+
+    unsigned int t_begin = 0;
+    unsigned int t_end = 0;
+
+    unsigned int chain_length = 0;
+    unsigned int best_bin_count = 0;
+
+    long long score = -1;
+};
+
 long long DiagonalBin(long long diagonal, long long bin_size) {
     if (diagonal >= 0) {
         return diagonal / bin_size;
     }
 
     return -((-diagonal + bin_size - 1) / bin_size);
+}
+
+long long CandidateScore(
+    unsigned int q_begin,
+    unsigned int q_end,
+    unsigned int chain_length,
+    unsigned int best_bin_count)
+{
+    if (q_end <= q_begin || chain_length == 0) {
+        return -1;
+    }
+
+    unsigned int query_span = q_end - q_begin;
+
+    return static_cast<long long>(query_span) * 1000
+         + static_cast<long long>(chain_length) * 10
+         + static_cast<long long>(best_bin_count);
 }
 
 static char komplement(char a){
@@ -57,6 +90,129 @@ static std::string reverse_complement(const std::string& seq) {
         rc[seq.size() - 1 - i] = komplement(seq[i]);
     }
     return rc;
+}
+
+MappingResult MapOneStrand(
+    const std::string& frag_data,
+    char strand,
+    const std::unordered_map<unsigned int, std::vector<unsigned int>>& index,
+    unsigned int target_len,
+    int fragment_index)
+{
+    MappingResult result;
+    result.strand = strand;
+
+    auto frag_mins = mapper::Minimize(
+        frag_data.c_str(),
+        (unsigned int)frag_data.size(),
+        5,
+        15
+    );
+
+    const long long diagonal_bin_size = 500;
+    std::unordered_map<long long, unsigned int> diagonal_counts;
+
+    for (const auto& m : frag_mins) {
+        unsigned int hash = std::get<0>(m);
+        unsigned int frag_pos = std::get<1>(m);
+
+        auto found = index.find(hash);
+
+        if (found != index.end()) {
+            for (unsigned int ref_pos : found->second) {
+                long long diagonal =
+                    static_cast<long long>(ref_pos) - static_cast<long long>(frag_pos);
+
+                long long bin = DiagonalBin(diagonal, diagonal_bin_size);
+                ++diagonal_counts[bin];
+            }
+        }
+    }
+
+    if (diagonal_counts.empty()) {
+        std::cerr << "Fragment " << fragment_index
+                  << " strand=" << strand
+                  << " length=" << frag_data.size()
+                  << " minimizers=" << frag_mins.size()
+                  << " hits=0\n";
+        return result;
+    }
+
+    long long best_bin = 0;
+    unsigned int best_bin_count = 0;
+
+    for (const auto& item : diagonal_counts) {
+        if (item.second > best_bin_count) {
+            best_bin = item.first;
+            best_bin_count = item.second;
+        }
+    }
+
+    result.best_bin_count = best_bin_count;
+
+    std::vector<mapper::Hit> hits;
+    hits.reserve(best_bin_count * 3);
+
+    for (const auto& m : frag_mins) {
+        unsigned int hash = std::get<0>(m);
+        unsigned int frag_pos = std::get<1>(m);
+
+        auto found = index.find(hash);
+
+        if (found != index.end()) {
+            for (unsigned int ref_pos : found->second) {
+                long long diagonal =
+                    static_cast<long long>(ref_pos) - static_cast<long long>(frag_pos);
+
+                long long bin = DiagonalBin(diagonal, diagonal_bin_size);
+
+                if (std::llabs(bin - best_bin) <= 1) {
+                    hits.push_back({frag_pos, ref_pos});
+                }
+            }
+        }
+    }
+
+    std::cerr << "Fragment " << fragment_index
+              << " strand=" << strand
+              << " length=" << frag_data.size()
+              << " minimizers=" << frag_mins.size()
+              << " best_diagonal_bin_hits=" << best_bin_count
+              << " hits=" << hits.size()
+              << "\n";
+
+    if (hits.empty()) {
+        return result;
+    }
+
+    auto chain = mapper::find_LIS_chain(hits);
+
+    if (chain.empty()) {
+        return result;
+    }
+
+    result.q_begin = chain.front().query_pos;
+    result.q_end = chain.back().query_pos + 5;
+    result.t_begin = chain.front().target_pos;
+    result.t_end = chain.back().target_pos + 5;
+
+    result.q_end = std::min(result.q_end, (unsigned int)frag_data.size());
+    result.t_end = std::min(result.t_end, target_len);
+
+    if (result.q_end <= result.q_begin || result.t_end <= result.t_begin) {
+        return result;
+    }
+
+    result.chain_length = (unsigned int)chain.size();
+    result.score = CandidateScore(
+        result.q_begin,
+        result.q_end,
+        result.chain_length,
+        result.best_bin_count
+    );
+
+    result.mapped = true;
+    return result;
 }
 
 void test_LIS() {
@@ -219,200 +375,74 @@ std::cerr << "Index build time: "
           << " ms\n";
 
 for (int i = 0; i < (int)sek.size(); i++) {
-    const std::string& frag_data1 = sek[i]->data;
-    std::string frag_data = reverse_complement(frag_data1);
-    // 1. MINIMIZE
-    auto frag_mins = mapper::Minimize(
-        frag_data.c_str(),
-        (unsigned int)frag_data.size(),
-        5, 15
+    const std::string& original_fragment = sek[i]->data;
+    std::string rc_fragment = reverse_complement(original_fragment);
+
+    MappingResult plus = MapOneStrand(
+        original_fragment,
+        '+',
+        index,
+        (unsigned int)ref[0]->data.size(),
+        i
     );
 
+    MappingResult minus = MapOneStrand(
+        rc_fragment,
+        '-',
+        index,
+        (unsigned int)ref[0]->data.size(),
+        i
+    );
 
-    auto t_hits_begin = std::chrono::steady_clock::now();
-    // prikupi hitove iz najboljeg dijagonalnog područja
-const long long diagonal_bin_size = 500;
-
-std::unordered_map<long long, unsigned int> diagonal_counts;
-
-for (const auto& m : frag_mins) {
-    unsigned int hash = std::get<0>(m);
-    unsigned int frag_pos = std::get<1>(m);
-
-    auto found = index.find(hash);
-
-    if (found != index.end()) {
-        for (unsigned int ref_pos : found->second) {
-            long long diagonal =
-                static_cast<long long>(ref_pos) - static_cast<long long>(frag_pos);
-
-            long long bin = DiagonalBin(diagonal, diagonal_bin_size);
-            ++diagonal_counts[bin];
-        }
-    }
-}
-
-if (diagonal_counts.empty()) {
-    std::cerr << "Fragment " << i
-              << " length=" << frag_data.size()
-              << " minimizers=" << frag_mins.size()
-              << " hits=0\n";
-    continue;
-}
-
-long long best_bin = 0;
-unsigned int best_bin_count = 0;
-
-for (const auto& item : diagonal_counts) {
-    if (item.second > best_bin_count) {
-        best_bin = item.first;
-        best_bin_count = item.second;
-    }
-}
-
-std::vector<mapper::Hit> hits;
-hits.reserve(best_bin_count * 3);
-
-for (const auto& m : frag_mins) {
-    unsigned int hash = std::get<0>(m);
-    unsigned int frag_pos = std::get<1>(m);
-
-    auto found = index.find(hash);
-
-    if (found != index.end()) {
-        for (unsigned int ref_pos : found->second) {
-            long long diagonal =
-                static_cast<long long>(ref_pos) - static_cast<long long>(frag_pos);
-
-            long long bin = DiagonalBin(diagonal, diagonal_bin_size);
-
-            if (std::llabs(bin - best_bin) <= 1) {
-                hits.push_back({frag_pos, ref_pos});
-            }
-        }
-    }
-}
-
-    auto t_hits_end = std::chrono::steady_clock::now();
-
-    std::cerr << "Collect hits time: "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 t_hits_end - t_hits_begin
-             ).count()
-          << " ms\n";
-
-    //debug ispis hits
-    std::cerr << "Fragment " << i
-          << " length=" << frag_data.size()
-          << " minimizers=" << frag_mins.size()
-          << " best_diagonal_bin_hits=" << best_bin_count
-          << " hits=" << hits.size()
-          << "\n";
-
-
-    if (hits.empty()) continue;
-
-    // 2. LIS
-    auto t_lis_begin = std::chrono::steady_clock::now();
-
-    auto chain = mapper::find_LIS_chain(hits);
-
-    auto t_lis_end = std::chrono::steady_clock::now();
-
-    std::cerr << "LIS time: "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 t_lis_end - t_lis_begin
-             ).count()
-          << " ms\n";
-
-    if (chain.empty()) continue;
-
-    unsigned int q_begin = chain.front().query_pos;
-    unsigned int q_end   = chain.back().query_pos + 5;
-    unsigned int t_begin = chain.front().target_pos;
-    unsigned int t_end   = chain.back().target_pos + 5;
-    // osiguraj da regija nije prevelika
-   
-
-    // osiguraj granice
-    q_end = std::min(q_end, (unsigned int)frag_data.size());
-    t_end = std::min(t_end, (unsigned int)ref[0]->data.size());
-    // 3. ALIGN
-    // TODO obrisi
-    //if (q_end <= q_begin || t_end <= t_begin) continue;
-    //if (q_end - q_begin > 3000 || t_end - t_begin > 3000) continue;
-    //if (q_end - q_begin > 10000) q_end = q_begin + 10000;
-    //if (t_end - t_begin > 10000) t_end = t_begin + 10000;
-    std::string cigar;
-    bool has_alignment = false;
-
-    if (q_end <= q_begin || t_end <= t_begin) {
+    if (!plus.mapped && !minus.mapped) {
         continue;
     }
 
-    if (q_end - q_begin > 12000 || t_end - t_begin > 12000) {
-        std::cerr << "Skipping alignment: region too large "
-                << "query=" << (q_end - q_begin)
-                << " target=" << (t_end - t_begin)
-                << "\n";
+    MappingResult best;
+
+    if (plus.mapped && !minus.mapped) {
+        best = plus;
+    } else if (!plus.mapped && minus.mapped) {
+        best = minus;
+    } else if (minus.score > plus.score) {
+        best = minus;
     } else {
-        auto t_align_begin = std::chrono::steady_clock::now();
-
-        mapper::Align(
-            frag_data.c_str() + q_begin, q_end - q_begin,
-            ref[0]->data.c_str() + t_begin, t_end - t_begin,
-            mapper::AlignmentType::Global,
-            2, -1, -2,
-            &cigar
-        );
-
-        auto t_align_end = std::chrono::steady_clock::now();
-
-        std::cerr << "Alignment time: "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(
-                        t_align_end - t_align_begin
-                    ).count()
-                << " ms\n";
-
-        has_alignment = true;
-    }
-    // 4. PAF
-    /*{
-    std::cout << sek[i]->name      << "\t"
-              << frag_data.size()    << "\t"
-              << q_begin             << "\t"
-              << q_end               << "\t"
-              << "+"                 << "\t"
-              << ref[0]->name        << "\t"
-              << ref[0]->data.size() << "\t"
-              << t_begin             << "\t"
-              << t_end               << "\t"
-              << 255                 << "\n";
-    }*/
-    {
-        unsigned int block_len = std::min(q_end - q_begin, t_end - t_begin);
-
-        std::cout << sek[i]->name        << "\t"
-                << frag_data.size()    << "\t"
-                << q_begin             << "\t"
-                << q_end               << "\t"
-                << "+"                 << "\t"
-                << ref[0]->name        << "\t"
-                << ref[0]->data.size() << "\t"
-                << t_begin             << "\t"
-                << t_end               << "\t"
-                << block_len           << "\t"
-                << block_len           << "\t"
-                << 255;
-
-        if (has_alignment) {
-            std::cout << "\tcg:Z:" << cigar;
-        }
-
-        std::cout << "\n";
+        best = plus;
     }
 
+    std::cerr << "Chosen strand for fragment " << i
+              << ": " << best.strand
+              << " score=" << best.score
+              << " chain_length=" << best.chain_length
+              << "\n";
+
+    unsigned int output_q_begin = best.q_begin;
+    unsigned int output_q_end = best.q_end;
+
+    if (best.strand == '-') {
+        output_q_begin = (unsigned int)original_fragment.size() - best.q_end;
+        output_q_end = (unsigned int)original_fragment.size() - best.q_begin;
+    }
+
+    unsigned int block_len = std::min(
+        output_q_end - output_q_begin,
+        best.t_end - best.t_begin
+    );
+
+    std::cout << sek[i]->name              << "\t"
+              << original_fragment.size()  << "\t"
+              << output_q_begin            << "\t"
+              << output_q_end              << "\t"
+              << best.strand               << "\t"
+              << ref[0]->name              << "\t"
+              << ref[0]->data.size()       << "\t"
+              << best.t_begin              << "\t"
+              << best.t_end                << "\t"
+              << block_len                 << "\t"
+              << block_len                 << "\t"
+              << 255                       << "\n";
 }
+
     auto t_total_end = std::chrono::steady_clock::now();
     /*std::cerr << "Total time: "
           << std::chrono::duration_cast<std::chrono::milliseconds>(
