@@ -215,98 +215,21 @@ MappingResult MapOneStrand(
     return result;
 }
 
-void test_LIS() {
-    std::cout << "\n=== TESTIRANJE LIS ALGORITMA ===" << std::endl;
-
-    
-    std::vector<mapper::Hit> hits1 = {
-        {10, 500}, {20, 510}, {30, 1200}, {40, 520}, {50, 300}
-    };
-    auto chain1 = mapper::find_LIS_chain(hits1);
-    std::cout << "Test 1 (Buka): ";
-    for(auto h : chain1) std::cout << h.target_pos << " ";
-    std::cout << (chain1.size() == 3 ? " -> PROŠAO" : " -> PAD") << std::endl;
-
-    
-    std::vector<mapper::Hit> hits2 = {
-        {1, 100}, {2, 200}, {3, 300}, {4, 400}
-    };
-    auto chain2 = mapper::find_LIS_chain(hits2);
-    std::cout << "Test 2 (Idealno): ";
-    for(auto h : chain2) std::cout << h.target_pos << " ";
-    std::cout << (chain2.size() == 4 ? " -> PROŠAO" : " -> PAD") << std::endl;
-
-    
-    std::vector<mapper::Hit> hits3 = {
-        {1, 50}, {2, 40}, {3, 30}, {4, 20}, {5, 10}
-    };
-    auto chain3 = mapper::find_LIS_chain(hits3);
-    std::cout << "Test 3 (Obrnuto): ";
-    for(auto h : chain3) std::cout << h.target_pos << " ";
-    std::cout << (chain3.size() == 1 ? " -> PROŠAO" : " -> PAD") << std::endl;
-
-    std::cout << "===============================\n" << std::endl;
-}
-
-
 int main(int argc, char** argv) {
     auto t_total_begin = std::chrono::steady_clock::now();
 
     if (argc < 3) {
-    //std::cerr << "Usage: ./mapper <reference.fasta> <fragments.fasta>\n";
+    std::cerr << "Usage: ./mapper <reference.fasta> <fragments.fasta>\n";
     return 1;
 }
 
-    //auto ref_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>("../../data/referentna.fna");
-    //auto sekv = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>("../../data/sekvanca.fasta");
     auto ref_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
     auto sekv = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
     
-    //std::vector<std::unique_ptr<Sequence>> sequences;
     auto ref = ref_parser->Parse(-1);
     auto sek= sekv->Parse(-1);
 
-        // U main.cpp testnom dijelu:
-/*std::string test_query = "GAAAAT";
-std::string test_target = "GAT";
-std::string cigar;
-unsigned int target_begin = 0;
-
-// Obavezno koristi (unsigned int) ispred length() jer length() vraća size_t
-int score = mapper::Align(
-    test_query.c_str(), (unsigned int)test_query.length(),
-    test_target.c_str(), (unsigned int)test_target.length(),
-    mapper::AlignmentType::Global,
-    2, -1, -1,
-    &cigar,
-    &target_begin
-);
-
-std::cout << "\n--- BRZI TEST ALIGNMENTA ---" << std::endl;
-std::cout << "Query:  " << test_query << std::endl;
-std::cout << "Target: " << test_target << std::endl;
-std::cout << "Score:  " << score << std::endl;
-std::cout << "CIGAR:  " << cigar << std::endl;
-std::cout << "---------------------------\n" << std::endl;
-
-    std::unordered_map<unsigned int, std::vector<unsigned int>> index2;
-
-    for (const auto& seq : sek) {
-        const std::string& s = seq->data;
-        auto mins = mapper::Minimize(
-            s.c_str(),
-            (unsigned int)s.size(),
-            5,
-            15
-        );
-        for (const auto& m : mins) {
-            unsigned int hash = std::get<0>(m);
-            unsigned int pos  = std::get<1>(m);
-
-            index2[hash].push_back(pos);
-        }
-    }
-*/
+       
 const double f = 0.1;
 
 auto t_index_begin = std::chrono::steady_clock::now();
@@ -444,11 +367,6 @@ for (int i = 0; i < (int)sek.size(); i++) {
 }
 
     auto t_total_end = std::chrono::steady_clock::now();
-    /*std::cerr << "Total time: "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 t_total_end - t_total_begin
-             ).count()
-          << " ms\n";*/
 
     return 0;
 }
