@@ -218,10 +218,47 @@ MappingResult MapOneStrand(
 int main(int argc, char** argv) {
     auto t_total_begin = std::chrono::steady_clock::now();
 
+    int k=5;
+    int w=15;
+    bool cigar=true;
+    double f = 0.1;
     if (argc < 3) {
     std::cerr << "Usage: ./mapper <reference.fasta> <fragments.fasta>\n";
     return 1;
 }
+
+    for(int i=3; i<argc; i++){
+        std::string arg= argv[i];
+
+        if(arg=="-k"){
+            if (i + 1 >= argc) {
+                std::cerr << "Nedostaje vrijednost nakon -k\n";
+                return 1;
+            }
+            k = std::stoi(argv[++i]);
+        }
+        else if (arg == "-w") {
+            if (i + 1 >= argc) {
+                std::cerr << "Nedostaje vrijednost nakon -w\n";
+                return 1;
+            }
+            w = std::stoi(argv[++i]);
+        }
+        else if (arg == "-f") {
+            if (i + 1 >= argc) {
+                std::cerr << "Nedostaje vrijednost nakon -f\n";
+                return 1;
+            }
+            f = std::stoi(argv[++i]);
+        }
+        else if (arg == "-c") {
+            cigar = true;
+        }
+        else {
+            std::cerr << "Krivi argument: " << arg << "\n";
+            return 1;
+        }
+    }
 
     auto ref_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
     auto sekv = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
