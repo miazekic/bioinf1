@@ -71,6 +71,12 @@ target_match = 0
 overlap_50 = 0
 overlap_80 = 0
 
+both_strand_and_overlap80 = 0
+strand_only = 0
+overlap80_only = 0
+neither = 0
+
+
 for q in common:
     a = our[q]
     b = mm2[q]
@@ -78,6 +84,18 @@ for q in common:
     ov = overlap(a["t_start"], a["t_end"], b["t_start"], b["t_end"])
     shorter = min(a["t_end"] - a["t_start"], b["t_end"] - b["t_start"])
     frac = ov / shorter if shorter > 0 else 0.0
+
+    same_strand = a["strand"] == b["strand"]
+    good_overlap80 = frac >= 0.8
+
+    if same_strand and good_overlap80:
+        both_strand_and_overlap80 += 1
+    elif same_strand and not good_overlap80:
+        strand_only += 1
+    elif not same_strand and good_overlap80:
+        overlap80_only += 1
+    else:
+        neither += 1
 
     if a["strand"] == b["strand"]:
         strand_match += 1
@@ -100,3 +118,9 @@ if common:
     print(f"Strand match: {strand_match}/{len(common)} = {strand_match / len(common) * 100:.2f}%")
     print(f"Target overlap >= 50%: {overlap_50}/{len(common)} = {overlap_50 / len(common) * 100:.2f}%")
     print(f"Target overlap >= 80%: {overlap_80}/{len(common)} = {overlap_80 / len(common) * 100:.2f}%")
+    print()
+    print("Strand/overlap contingency table using overlap >= 80%:")
+    print(f"Both strand match and overlap >= 80%: {both_strand_and_overlap80}")
+    print(f"Strand match only: {strand_only}")
+    print(f"Overlap >= 80% only: {overlap80_only}")
+    print(f"Neither: {neither}")
