@@ -21,6 +21,21 @@ make -j4
 ./mapper <put do reference> <put do sekvence>
 ```
 
+## Argumenti
+|Argument|Opis|Default|
+|--------|----|--------|
+|-k|Duljina k-mera|5|
+|-w|Veličina prozora|15|
+|-f|udio najčešćih minimizera koji se ignoriraju|0.001|
+|-c|Uključi cigar|false|
+
+## Pokretanje s argumentima - primjer
+```bash
+./mapper <put do reference> <put do sekvence> -k 5 -w 15 -f 0.001
+```
+- argumenti se postavljaju nakon putanja do datoteka
+
+## Provjera točnosti
 - za usporedbu s minimapom napravljen je program compare_paf.py unutar mape mapper
 - za pokretanje python compare_paf.py <our.paf> <minimap2.paf>
 
