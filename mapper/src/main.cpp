@@ -267,8 +267,6 @@ int main(int argc, char** argv) {
     auto sek= sekv->Parse(-1);
 
        
-const double f = 0.1;
-
 auto t_index_begin = std::chrono::steady_clock::now();
 std::unordered_map<unsigned int, std::vector<unsigned int>> index;
 
