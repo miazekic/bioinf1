@@ -21,6 +21,9 @@ make -j4
 ./mapper <put do reference> <put do sekvence>
 ```
 
+- za usporedbu s minimapom napravljen je program compare_paf.py unutar mape mapper
+- za pokretanje python compare_paf.py <our.paf> <minimap2.paf>
+
 # BSc project (computer science - 2025/2026)
 
 ## Preliminaries
