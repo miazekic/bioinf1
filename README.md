@@ -1,3 +1,26 @@
+# Upute za instalaciju i pokretanje:
+## Ovisnosti
+- CMake >= 3.14
+- podrška za C++17
+
+## Instalacija
+```bash
+git clone --recursive https://github.com/miazekic/bioinf1
+cd mapper
+```
+
+## Izgradnja
+```bash
+mkdir build & cd build
+cmake ..
+make -j4
+```
+
+## Pokretanje
+```bash
+./mapper <put do reference> <put do sekvence>
+```
+
 # BSc project (computer science - 2025/2026)
 
 ## Preliminaries
