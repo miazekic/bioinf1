@@ -49,6 +49,7 @@ struct MappingResult {
     unsigned int best_bin_count = 0;
 
     long long score = -1;
+    int alignment_score = -1000000000;
 };
 
 long long DiagonalBin(long long diagonal, long long bin_size) {
@@ -92,12 +93,50 @@ static std::string reverse_complement(const std::string& seq) {
     return rc;
 }
 
+int AlignmentScoreCandidate(
+    const std::string& query,
+    const std::string& target,
+    const MappingResult& result)
+{
+    const unsigned int max_alignment_len = 1000;
+
+    if (!result.mapped || result.q_end <= result.q_begin ||
+        result.t_end <= result.t_begin) {
+        return -1000000000;
+    }
+
+    unsigned int q_len = std::min(
+        result.q_end - result.q_begin,
+        max_alignment_len
+    );
+
+    unsigned int t_len = std::min(
+        result.t_end - result.t_begin,
+        max_alignment_len
+    );
+
+    return mapper::Align(
+        query.c_str() + result.q_begin,
+        q_len,
+        target.c_str() + result.t_begin,
+        t_len,
+        mapper::AlignmentType::Global,
+        2,
+        -1,
+        -2,
+        nullptr
+    );
+}
+
+
 MappingResult MapOneStrand(
     const std::string& frag_data,
     char strand,
     const std::unordered_map<unsigned int, std::vector<unsigned int>>& index,
     unsigned int target_len,
-    int fragment_index)
+    int fragment_index,
+    unsigned int k,
+    unsigned int w)
 {
     MappingResult result;
     result.strand = strand;
@@ -105,8 +144,8 @@ MappingResult MapOneStrand(
     auto frag_mins = mapper::Minimize(
         frag_data.c_str(),
         (unsigned int)frag_data.size(),
-        5,
-        15
+        k,
+        w
     );
 
     const long long diagonal_bin_size = 500;
@@ -192,9 +231,9 @@ MappingResult MapOneStrand(
     }
 
     result.q_begin = chain.front().query_pos;
-    result.q_end = chain.back().query_pos + 5;
+    result.q_end = chain.back().query_pos + k;
     result.t_begin = chain.front().target_pos;
-    result.t_end = chain.back().target_pos + 5;
+    result.t_end = chain.back().target_pos + k;
 
     result.q_end = std::min(result.q_end, (unsigned int)frag_data.size());
     result.t_end = std::min(result.t_end, target_len);
@@ -218,8 +257,8 @@ MappingResult MapOneStrand(
 int main(int argc, char** argv) {
     auto t_total_begin = std::chrono::steady_clock::now();
 
-    int k=5;
-    int w=15;
+    unsigned int k=5;
+    unsigned int w=15;
     bool cigar=true;
     double f = 0.1;
     if (argc < 3) {
@@ -235,24 +274,21 @@ int main(int argc, char** argv) {
                 std::cerr << "Nedostaje vrijednost nakon -k\n";
                 return 1;
             }
-            k = std::stoi(argv[++i]);
+            k = static_cast<unsigned int>(std::stoul(argv[++i]));
         }
         else if (arg == "-w") {
             if (i + 1 >= argc) {
                 std::cerr << "Nedostaje vrijednost nakon -w\n";
                 return 1;
             }
-            w = std::stoi(argv[++i]);
+           w = static_cast<unsigned int>(std::stoul(argv[++i]));
         }
         else if (arg == "-f") {
             if (i + 1 >= argc) {
                 std::cerr << "Nedostaje vrijednost nakon -f\n";
                 return 1;
             }
-            f = std::stoi(argv[++i]);
-        }
-        else if (arg == "-c") {
-            cigar = true;
+            f = std::stod(argv[++i]);
         }
         else {
             std::cerr << "Krivi argument: " << arg << "\n";
@@ -260,13 +296,18 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (k == 0 || w == 0 || k > w) {
+    std::cerr << "Invalid minimizer parameters: require 0 < k <= w\n";
+    return 1;
+}
+
     auto ref_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
     auto sekv = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
     
     auto ref = ref_parser->Parse(-1);
     auto sek= sekv->Parse(-1);
 
-       
+
 auto t_index_begin = std::chrono::steady_clock::now();
 std::unordered_map<unsigned int, std::vector<unsigned int>> index;
 
@@ -274,8 +315,8 @@ for (const auto& seq : ref) {
     auto ref_mins = mapper::Minimize(
         seq->data.c_str(),
         (unsigned int)seq->data.size(),
-        5,
-        15
+        k,
+        w
     );
 
     for (const auto& m : ref_mins) {
@@ -341,7 +382,9 @@ for (int i = 0; i < (int)sek.size(); i++) {
         '+',
         index,
         (unsigned int)ref[0]->data.size(),
-        i
+        i,
+        k,
+        w
     );
 
     MappingResult minus = MapOneStrand(
@@ -349,7 +392,9 @@ for (int i = 0; i < (int)sek.size(); i++) {
         '-',
         index,
         (unsigned int)ref[0]->data.size(),
-        i
+        i,
+        k,
+        w
     );
 
     if (!plus.mapped && !minus.mapped) {
@@ -357,21 +402,53 @@ for (int i = 0; i < (int)sek.size(); i++) {
     }
 
     MappingResult best;
+    bool used_alignment = false;
 
-    if (plus.mapped && !minus.mapped) {
+        if (plus.mapped && !minus.mapped) {
         best = plus;
     } else if (!plus.mapped && minus.mapped) {
         best = minus;
-    } else if (minus.score > plus.score) {
-        best = minus;
     } else {
-        best = plus;
+        const double score_ratio_threshold = 1.10;
+
+        if ((double)plus.score > (double)minus.score * score_ratio_threshold) {
+            best = plus;
+        } else if ((double)minus.score > (double)plus.score * score_ratio_threshold) {
+            best = minus;
+        } else {
+            plus.alignment_score = AlignmentScoreCandidate(
+                original_fragment,
+                ref[0]->data,
+                plus
+            );
+
+            minus.alignment_score = AlignmentScoreCandidate(
+                rc_fragment,
+                ref[0]->data,
+                minus
+            );
+
+            used_alignment = true;
+
+            if (minus.alignment_score > plus.alignment_score) {
+                best = minus;
+            } else if (minus.alignment_score == plus.alignment_score &&
+                       minus.score > plus.score) {
+                best = minus;
+            } else {
+                best = plus;
+            }
+        }
     }
+
 
     std::cerr << "Chosen strand for fragment " << i
               << ": " << best.strand
-              << " score=" << best.score
+              << " used_alignment=" << used_alignment
+              << " alignment_score=" << best.alignment_score
+              << " chain_score=" << best.score
               << " chain_length=" << best.chain_length
+              << " best_bin_count=" << best.best_bin_count
               << "\n";
 
     unsigned int output_q_begin = best.q_begin;
