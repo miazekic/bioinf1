@@ -27,7 +27,6 @@ make -j4
 |-k|Duljina k-mera|5|
 |-w|Veličina prozora|15|
 |-f|udio najčešćih minimizera koji se ignoriraju|0.001|
-|-c|Uključi cigar|false|
 
 ## Pokretanje s argumentima - primjer
 ```bash
